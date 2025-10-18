@@ -1,4 +1,4 @@
-
+// TeacherGUI.java (updated - remove manual button, add reset method)
 package com.mycompany.quizsystem;
 
 import javafx.application.Platform;
@@ -6,14 +6,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import jade.core.AID;
-import jade.lang.acl.ACLMessage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +28,7 @@ public class TeacherGUI {
 
     public void show() {
         stage = new Stage();
-        stage.setTitle("Teacher Quiz System");
+        stage.setTitle("Teacher Quiz System - Automatic");
 
         TableColumn<StudentRow, String> nameCol = new TableColumn<>("Student");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -45,19 +43,18 @@ public class TeacherGUI {
         table.setItems(students);
         table.getColumns().addAll(nameCol, ansCol, scoreCol);
 
-        Button sendBtn = new Button("Send Question");
-        sendBtn.setOnAction(e -> sendQuestion());
+        // No manual send button - automatic
 
-        VBox root = new VBox(10, sendBtn, table);
+        VBox root = new VBox(10, table);
         root.setPadding(new Insets(10));
         Scene scene = new Scene(root, 500, 400);
         stage.setScene(scene);
         stage.show();
 
- 
+        // Initial fetch after a short delay
         Platform.runLater(() -> {
             try {
-                Thread.sleep(2000); 
+                Thread.sleep(2000);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
@@ -75,43 +72,25 @@ public class TeacherGUI {
                 Platform.runLater(() -> {
                     students.add(row);
                     rowMap.put(name, row);
-                    agent.getAnswers().put(name, "");
                 });
             }
         }
     }
 
-    private void sendQuestion() {
-        List<AID> studs = agent.getStudents();
-        for (AID s : studs) {
-            ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
-            msg.addReceiver(s);
-            msg.setContent("QUESTION: 2 + 3 = ?");
-            agent.send(msg);
-        }
-
-
-        initializeStudents();
+    public void resetAnswers() {
         Platform.runLater(() -> {
             for (StudentRow row : students) {
                 row.setAnswer("");
-            }
-            agent.getAnswers().clear();
-            for (String name : rowMap.keySet()) {
-                agent.getAnswers().put(name, "");
             }
         });
     }
 
     public void updateStudent(String name, String ans, int score) {
-   
         if (!rowMap.containsKey(name)) {
             StudentRow newRow = new StudentRow(name, ans, score);
             Platform.runLater(() -> {
                 students.add(newRow);
                 rowMap.put(name, newRow);
-                agent.getAnswers().put(name, ans);
-                agent.getScores().put(name, score);
             });
             return;
         }

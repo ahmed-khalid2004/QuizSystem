@@ -1,9 +1,10 @@
-// TeacherAgent.java (with debug prints)
+// TeacherAgent.java (minor update: fix RESULT for 0 points to say "point" consistently)
 package com.mycompany.quizsystem;
 
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.TickerBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -16,6 +17,7 @@ public class TeacherAgent extends Agent {
     private TeacherGUI gui;
     private Map<String, String> answers = new HashMap<>();
     private Map<String, Integer> scores = new HashMap<>();
+    private int questionCounter = 0;
 
     protected void setup() {
         System.out.println("TeacherAgent starting up...");
@@ -52,16 +54,17 @@ public class TeacherAgent extends Agent {
                         String content = msg.getContent();
                         String ans = content.substring(7).trim();
                         String studentName = msg.getSender().getLocalName();
-                        int points = "5".equals(ans) ? 1 : 0;
+                        int points = "4".equals(ans) ? 1 : 0;
                         int newScore = scores.getOrDefault(studentName, 0) + points;
                         scores.put(studentName, newScore);
                         answers.put(studentName, ans);
 
-                        // Send result
+                        // Send result with consistent "point" text
                         ACLMessage reply = msg.createReply();
                         reply.setPerformative(ACLMessage.INFORM);
                         String res = points == 1 ? "Correct" : "Wrong";
-                        reply.setContent("RESULT: " + res + " (" + points + " point)");
+                        String pointText = points == 1 ? "1 point" : "0 points";
+                        reply.setContent("RESULT: " + res + " (" + pointText + ")");
                         send(reply);
                         System.out.println("Teacher sent RESULT to " + studentName + ": " + reply.getContent());
 
@@ -75,7 +78,16 @@ public class TeacherAgent extends Agent {
             }
         });
 
-        System.out.println("TeacherAgent setup complete. Ready for students.");
+        // Automatic question sending: Every 10 seconds
+        addBehaviour(new TickerBehaviour(this, 10000) {
+            protected void onTick() {
+                questionCounter++;
+                System.out.println("Teacher sending question #" + questionCounter + ": 2+2=?");
+                sendQuestion();
+            }
+        });
+
+        System.out.println("TeacherAgent setup complete. Automatic questions will start soon.");
     }
 
     public List<AID> getStudents() {
@@ -97,6 +109,28 @@ public class TeacherAgent extends Agent {
             fe.printStackTrace();
             return new ArrayList<>();
         }
+    }
+
+    private void sendQuestion() {
+        List<AID> studs = getStudents();
+        if (studs.isEmpty()) {
+            System.out.println("No students found yet—skipping question.");
+            return;
+        }
+        for (AID s : studs) {
+            ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+            msg.addReceiver(s);
+            msg.setContent("QUESTION: 2+2=?");
+            send(msg);
+            System.out.println("Question sent to " + s.getLocalName());
+        }
+
+        // Reset only answers for new question, keep scores
+        answers.clear();
+        for (String name : scores.keySet()) {
+            answers.put(name, "");
+        }
+        Platform.runLater(() -> gui.resetAnswers());
     }
 
     private void updateStudent(String name, String ans, int score) {

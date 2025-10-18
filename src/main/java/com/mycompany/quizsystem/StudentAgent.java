@@ -1,4 +1,4 @@
-// StudentAgent.java (with debug prints)
+// StudentAgent.java (updated with alternating answers for equal scores)
 package com.mycompany.quizsystem;
 
 import jade.core.AID;
@@ -14,6 +14,7 @@ import javafx.application.Platform;
 public class StudentAgent extends Agent {
     private StudentGUI gui;
     private AID teacher;
+    private int questionCount = 0; // Per-student counter for alternating
 
     protected void setup() {
         System.out.println("StudentAgent " + getLocalName() + " starting up...");
@@ -66,7 +67,21 @@ public class StudentAgent extends Agent {
                     System.out.println("Student " + getLocalName() + " received message from " + msg.getSender().getLocalName() + ": " + msg.getContent());
                     String cont = msg.getContent();
                     if (cont.startsWith("QUESTION:")) {
+                        questionCount++;
                         setQuestion(cont.substring(9));
+                        System.out.println("Student " + getLocalName() + " processing question #" + questionCount);
+                        
+                        // Auto-answer: Alternate correct ("4") and wrong ("5")
+                        String autoAnswer = (questionCount % 2 == 0) ? "4" : "5";
+                        System.out.println("Student " + getLocalName() + " will answer: " + autoAnswer + " (correct: " + (autoAnswer.equals("4") ? "yes" : "no") + ")");
+                        
+                        // Simulate thinking delay
+                        try {
+                            Thread.sleep(1000 + (int)(Math.random() * 2000)); // 1-3s
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
+                        sendAnswer(autoAnswer);
                     } else if (cont.startsWith("RESULT:")) {
                         setResult(cont.substring(7));
                     }
